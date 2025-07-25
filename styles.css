@@ -1,5 +1,5 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Arial', sans-serif;
     direction: rtl;
     background-color: #1a1a1a;
     color: #e0e0e0;
@@ -8,72 +8,95 @@ body {
 }
 
 .container {
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     background: #2c2c2c;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
 h1, h2 {
     color: #00b7eb;
     text-align: center;
-}
-
-.input-section, .results-section {
     margin-bottom: 20px;
 }
 
+.input-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
 button {
-    display: block;
-    margin: 10px auto;
     padding: 12px 24px;
     background-color: #007bff;
     color: #fff;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 button:hover {
     background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.results-section {
+    margin-top: 20px;
 }
 
 #analysisResults {
-    background: #333;
-    padding: 15px;
-    border-radius: 4px;
-    border: 1px solid #444;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
 }
 
-.pattern {
-    margin-bottom: 15px;
+.currency-card {
+    background: #333;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    transition: box-shadow 0.3s ease;
+}
+
+.currency-card:hover {
+    box-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
+}
+
+.currency-card h3 {
+    color: #00b7eb;
+    margin: 0 0 10px;
+}
+
+.currency-card p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.pattern, .recommendation, .nested-pattern {
+    margin-top: 10px;
     padding: 10px;
     border-left: 4px solid #00b7eb;
     background: #2c2c2c;
 }
 
-.pattern h3 {
-    margin: 0 0 10px;
+.pattern h4, .recommendation h4, .nested-pattern h4 {
     color: #00b7eb;
-}
-
-.pattern p {
-    margin: 5px 0;
-    color: #e0e0e0;
+    margin: 0 0 5px;
 }
 
 .error {
     color: #ff4d4d;
     font-weight: bold;
+    text-align: center;
 }
 
 .loading {
     color: #00b7eb;
     font-style: italic;
+    text-align: center;
 }
 
 @media (max-width: 600px) {
@@ -86,7 +109,11 @@ button:hover {
         padding: 10px 20px;
     }
 
-    .pattern, #analysisResults {
-        font-size: 14px;
+    #analysisResults {
+        grid-template-columns: 1fr;
+    }
+
+    .currency-card {
+        font-size: 13px;
     }
 }
