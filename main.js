@@ -40,6 +40,14 @@ function generateSyntheticKlines(currentPrice) {
   }
   return klineData;
 }
+async function fetchUsdtPairs() {
+  const url = proxy + "api/v3/exchangeInfo";
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.symbols
+    .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
+    .map(s => s.symbol);
+}
 
 // تحليل السوق الكامل
 async function analyzeMarket() {
