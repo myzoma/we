@@ -75,6 +75,24 @@ button:hover {
     font-size: 14px;
 }
 
+.pattern-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.pattern-table th, .pattern-table td {
+    padding: 8px;
+    border: 1px solid #444;
+    text-align: right;
+    font-size: 13px;
+}
+
+.pattern-table th {
+    background: #2c2c2c;
+    color: #00b7eb;
+}
+
 .pattern, .recommendation, .nested-pattern {
     margin-top: 10px;
     padding: 10px;
@@ -113,7 +131,7 @@ button:hover {
         grid-template-columns: 1fr;
     }
 
-    .currency-card {
+    .currency-card, .pattern-table {
         font-size: 13px;
     }
 }

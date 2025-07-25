@@ -8,25 +8,58 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // List of Binance API endpoints
+    const endpoints = [
+        'https://api.binance.com',
+        'https://api1.binance.com',
+        'https://api2.binance.com',
+        'https://api3.binance.com',
+        'https://api4.binance.com',
+        'https://data-api.binance.vision'
+    ];
+
+    // CORS proxy for development (temporary)
+    const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+
+    async function fetchWithFallback(url, options = {}, endpointIndex = 0) {
+        if (endpointIndex >= endpoints.length) {
+            throw new Error('فشل الاتصال بجميع الـ endpoints');
+        }
+
+        const currentEndpoint = endpoints[endpointIndex];
+        const proxiedUrl = url.replace(/^https:\/\/(api\d?\.binance\.com|data-api\.binance\.vision)/, `${corsProxy}$1`);
+
+        try {
+            const response = await fetch(proxiedUrl, {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    // Remove Content-Type to avoid CORS preflight issues
+                },
+                timeout: 10000
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.warn(`فشل ${proxiedUrl}: ${error.message}. جاري تجربة endpoint آخر...`);
+            return fetchWithFallback(url.replace(currentEndpoint, endpoints[endpointIndex + 1]), options, endpointIndex + 1);
+        }
+    }
+
     analyzeButton.addEventListener('click', async () => {
         resultsDiv.innerHTML = '<p class="loading">جاري فلترة السوق وتحليل العملات...</p>';
 
         try {
-            // Check if ElliottWaveAnalyzer is defined
             if (typeof ElliottWaveAnalyzer === 'undefined') {
                 resultsDiv.innerHTML = '<p class="error">خطأ: ملف elliottWaveAnalyzer.js غير محمل أو يحتوي على أخطاء.</p>';
                 console.error('ElliottWaveAnalyzer غير معرف');
                 return;
             }
 
-            // Fetch all trading pairs from Binance
-            const exchangeInfo = await fetch('https://api1.binance.com/api/v3/exchangeInfo', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 10000
-            }).then(res => res.json());
-
-            // Filter pairs: include only USDT pairs, exclude BTC pairs
+            // Fetch trading pairs
+            const exchangeInfo = await fetchWithFallback(`${endpoints[0]}/api/v3/exchangeInfo`);
             const nonBtcPairs = exchangeInfo.symbols
                 .filter(symbol => symbol.quoteAsset === 'USDT' && !symbol.baseAsset.includes('BTC') && !symbol.symbol.includes('BTC'))
                 .map(symbol => symbol.symbol)
@@ -40,34 +73,45 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsDiv.innerHTML = '';
             const analyzer = new ElliottWaveAnalyzer();
 
+            // Try WebSocket for real-time data
+            let wsData = {};
+            try {
+                const ws = new WebSocket('wss://data-stream.binance.vision/ws/!miniTicker@arr');
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    data.forEach(ticker => {
+                        wsData[ticker.s] = ticker.c; // Store latest price
+                    });
+                };
+                ws.onerror = () => console.warn('فشل WebSocket، الاعتماد على REST API');
+            } catch (wsError) {
+                console.warn('خطأ WebSocket:', wsError.message);
+            }
+
             // Analyze each pair
             for (const pair of nonBtcPairs) {
                 try {
-                    // Fetch K-line data for the pair
-                    const klineData = await fetch(`https://api.binance.com/api/v3/klines?symbol=${pair}&interval=1h&limit=100`, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 10000
-                    }).then(res => res.json());
-
+                    const klineData = await fetchWithFallback(`${endpoints[0]}/api/v3/klines?symbol=${pair}&interval=1h&limit=100`);
                     if (!Array.isArray(klineData) || klineData.length < 20) {
                         console.warn(`بيانات غير كافية لـ ${pair}`);
                         continue;
                     }
 
-                    // Analyze data
                     const analysis = analyzer.analyze(klineData);
                     if (analysis.status !== 'success') {
                         console.warn(`فشل تحليل ${pair}: ${analysis.message}`);
                         continue;
                     }
 
+                    // Use WebSocket price if available
+                    analysis.currentPrice = wsData[pair] || analysis.currentPrice;
+
                     // Create currency card
                     const card = document.createElement('div');
                     card.className = 'currency-card';
                     card.innerHTML = `
                         <h3>${pair} (${analyzer.translateTrend(analysis.trend)})</h3>
-                        <p><strong>السعر الحالي:</strong> ${analysis.currentPrice.toFixed(2)} USDT</p>
+                        <p><strong>السعر الحالي:</strong> ${parseFloat(analysis.currentPrice).toFixed(2)} USDT</p>
                         <p><strong>ملخص:</strong> ${analysis.summary}</p>
                     `;
 
@@ -85,37 +129,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         `;
                     }
 
-                    // Detected patterns
+                    // Detected patterns (in table)
                     if (analysis.patterns.length > 0) {
-                        card.innerHTML += `<div class="pattern"><h4>الأنماط المكتشفة (${analysis.patterns.length})</h4>`;
+                        card.innerHTML += `
+                            <div class="pattern">
+                                <h4>الأنماط المكتشفة (${analysis.patterns.length})</h4>
+                                <table class="pattern-table">
+                                    <thead>
+                                        <tr>
+                                            <th>النمط</th>
+                                            <th>الثقة</th>
+                                            <th>نسبة التغيير</th>
+                                            <th>الدعم</th>
+                                            <th>المقاومة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
                         analysis.patterns.slice(0, 2).forEach((pattern, index) => {
                             const percentage = pattern.waves && pattern.waves[0] && pattern.waves[0].percentage 
                                 ? pattern.waves[0].percentage.toFixed(2) 
                                 : ((pattern.points[pattern.points.length - 1][1] - pattern.points[0][1]) / pattern.points[0][1] * 100).toFixed(2);
                             card.innerHTML += `
-                                <div>
-                                    <h4>نمط ${index + 1}: ${pattern.type === 'motive' ? 'دافع' : 'تصحيحي'} (${pattern.direction === 'bullish' ? 'صاعد' : 'هابط'})</h4>
-                                    <p><strong>مستوى الثقة:</strong> ${pattern.confidence.toFixed(1)}%</p>
-                                    <p><strong>عدد النقاط:</strong> ${pattern.points.length}</p>
-                                    <p><strong>نسبة التغيير:</strong> ${percentage}%</p>
-                                    <p><strong>تحليل فيبوناتشي:</strong></p>
-                                    <ul>
-                                        ${Object.entries(pattern.fibonacciAnalysis).map(([wave, data]) => `
-                                            <li>${wave}: نسبة ${data.retracement ? data.retracement.toFixed(3) : data.ratio.toFixed(3)}, مستوى فيبوناتشي ${data.fibLevel.toFixed(3)} (${data.isValid ? 'صالح' : 'غير صالح'})</li>
-                                        `).join('')}
-                                    </ul>
-                                    <p><strong>الأهداف:</strong></p>
-                                    <ul>
-                                        ${Object.entries(pattern.targets)
-                                            .filter(([key, value]) => typeof value === 'number' && key !== 'support' && key !== 'resistance')
-                                            .map(([key, value]) => `<li>${key}: ${value.toFixed(2)} USDT</li>`).join('')}
-                                    </ul>
-                                    <p><strong>الدعم:</strong> ${pattern.targets.support.toFixed(2)} USDT</p>
-                                    <p><strong>المقاومة:</strong> ${pattern.targets.resistance.toFixed(2)} USDT</p>
-                                </div>
+                                <tr>
+                                    <td>نمط ${index + 1}: ${pattern.type === 'motive' ? 'دافع' : 'تصحيحي'} (${pattern.direction === 'bullish' ? 'صاعد' : 'هابط'})</td>
+                                    <td>${pattern.confidence.toFixed(1)}%</td>
+                                    <td>${percentage}%</td>
+                                    <td>${pattern.targets.support.toFixed(2)} USDT</td>
+                                    <td>${pattern.targets.resistance.toFixed(2)} USDT</td>
+                                </tr>
                             `;
                         });
-                        card.innerHTML += `</div>`;
+                        card.innerHTML += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
                     }
 
                     // Recommendations
@@ -137,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         card.innerHTML += `</div>`;
                     }
 
-                    // Dynamic levels fallback
+                    // Dynamic levels
                     const support = analysis.dynamicLevels.support.length > 0 
                         ? analysis.dynamicLevels.support.map(level => level.toFixed(2)).join(', ') 
                         : analysis.patterns[0]?.targets.support.toFixed(2) || 'غير متوفر';
