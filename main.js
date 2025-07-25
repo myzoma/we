@@ -21,42 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // CORS proxy for development
     const corsProxy = 'https://cors-anywhere.herokuapp.com/';
 
-    // Fallback data for non-BTC pairs
-    const fallbackData = {
-        'ETHUSDT': Array(100).fill().map((_, i) => [
-            1697059200000 + i * 3600000,
-            3200 + Math.random() * 50,
-            3250 + Math.random() * 60,
-            3150 + Math.random() * 40,
-            3200 + Math.random() * 50,
-            1000 + Math.random() * 500
-        ]),
-        'ADAUSDT': Array(100).fill().map((_, i) => [
-            1697059200000 + i * 3600000,
-            0.35 + Math.random() * 0.05,
-            0.36 + Math.random() * 0.06,
-            0.34 + Math.random() * 0.04,
-            0.35 + Math.random() * 0.05,
-            10000 + Math.random() * 5000
-        ]),
-        'BNBUSDT': Array(100).fill().map((_, i) => [
-            1697059200000 + i * 3600000,
-            250 + Math.random() * 10,
-            255 + Math.random() * 12,
-            245 + Math.random() * 8,
-            250 + Math.random() * 10,
-            2000 + Math.random() * 1000
-        ]),
-        'XRPUSDT': Array(100).fill().map((_, i) => [
-            1697059200000 + i * 3600000,
-            0.50 + Math.random() * 0.05,
-            0.52 + Math.random() * 0.06,
-            0.48 + Math.random() * 0.04,
-            0.50 + Math.random() * 0.05,
-            8000 + Math.random() * 4000
-        ])
-    };
-
     async function fetchWithFallback(url, options = {}, endpointIndex = 0) {
         if (endpointIndex >= endpoints.length) {
             throw new Error('فشل الاتصال بجميع الـ endpoints');
@@ -101,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         wsData[ticker.s] = parseFloat(ticker.c);
                     });
                 };
-                ws.onerror = () => console.warn('فشل WebSocket، الاعتماد على بيانات احتياطية');
+                ws.onerror = () => console.warn('فشل WebSocket، الاعتماد على بيانات API فقط');
                 await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (wsError) {
                 console.warn('خطأ WebSocket:', wsError.message);
@@ -116,8 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     .map(symbol => symbol.symbol)
                     .slice(0, 5);
             } catch (error) {
-                console.warn('فشل جلب قائمة الأزواج، استخدام بيانات احتياطية:', error.message);
-                nonBtcPairs = Object.keys(fallbackData);
+                console.warn('فشل جلب قائمة الأزواج:', error.message);
+                resultsDiv.innerHTML = '<p class="error">فشل جلب قائمة أزواج التداول. يرجى المحاولة لاحقاً.</p>';
+                return;
             }
 
             if (!nonBtcPairs.length) {
@@ -135,8 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         klineData = await fetchWithFallback(`${endpoints[0]}/api/v3/klines?symbol=${pair}&interval=1h&limit=100`);
                     } catch (apiError) {
-                        console.warn(`فشل جلب بيانات ${pair}، استخدام بيانات احتياطية:`, apiError.message);
-                        klineData = fallbackData[pair] || fallbackData['ETHUSDT'];
+                        console.warn(`فشل جلب بيانات ${pair}:`, apiError.message);
+                        continue; // تخطي هذا الزوج إذا فشل جلب البيانات
                     }
 
                     if (!Array.isArray(klineData) || klineData.length < 20) {
