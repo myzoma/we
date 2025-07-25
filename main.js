@@ -103,11 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 analysis.patterns.slice(0, 3).forEach((pattern, index) => {
                     const patternDiv = document.createElement('div');
                     patternDiv.className = 'pattern';
+                    const percentage = pattern.waves && pattern.waves[0] && pattern.waves[0].percentage ? pattern.waves[0].percentage.toFixed(2) : 'غير متوفر';
                     patternDiv.innerHTML = `
                         <h3>نمط ${index + 1}: ${pattern.type === 'motive' ? 'دافع' : 'تصحيحي'} (${pattern.direction === 'bullish' ? 'صاعد' : 'هابط'})</h3>
                         <p><strong>مستوى الثقة:</strong> ${pattern.confidence.toFixed(1)}%</p>
                         <p><strong>عدد النقاط:</strong> ${pattern.points.length}</p>
-                        <p><strong>نسبة التغيير:</strong> ${pattern.waves[0].percentage.toFixed(2)}%</p>
+                        <p><strong>نسبة التغيير:</strong> ${percentage}%</p>
                         <p><strong>تحليل فيبوناتشي:</strong></p>
                         <ul>
                             ${Object.entries(pattern.fibonacciAnalysis).map(([wave, data]) => `
