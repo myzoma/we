@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Fetch all trading pairs from Binance
-            const exchangeInfo = await fetch('https://api.binance.com/api/v3/exchangeInfo', {
+            const exchangeInfo = await fetch('https://api1.binance.com/api/v3/exchangeInfo', {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 10000
