@@ -27,6 +27,17 @@ h1, h2 {
     margin-bottom: 30px;
 }
 
+.note {
+    font-size: 14px;
+    color: #ff4d4d;
+    margin-top: 10px;
+}
+
+.note a {
+    color: #00b7eb;
+    text-decoration: underline;
+}
+
 button {
     padding: 12px 24px;
     background-color: #007bff;
