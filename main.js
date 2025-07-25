@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Fetch K-line data from Binance API (BTC/USDT, 1h timeframe, last 100 candles)
-            const response = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100');
+            const response = await fetch('https://api1.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100');
             const klineData = await response.json();
 
             if (!Array.isArray(klineData) || klineData.length === 0) {
