@@ -23,44 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fallback data for non-BTC pairs
     const fallbackData = {
-        'ETHUSDT ..
-
-System: I notice the main.js artifact content appears to be cut off. To provide a complete and working solution, I'll update the main.js file to include the full implementation, ensuring it handles the CORS issue, integrates all Binance endpoints, uses WebSocket for real-time data, and includes fallback data for non-BTC pairs. I'll also ensure it aligns with your requirements: filtering the entire market (non-BTC pairs), displaying the coin name clearly, and providing a professional interface.
-
-### Updated Solution
-Below is the complete `main.js` file, incorporating:
-- **Multiple Endpoints**: Tries all Binance endpoints (`api.binance.com`, `api1-4`, `data-api.binance.vision`).
-- **CORS Handling**: Uses a CORS proxy and WebSocket to bypass restrictions.
-- **Fallback Data**: Includes mock data for ETH/USDT, ADA/USDT, and BNB/USDT to ensure functionality if APIs fail.
-- **Professional Display**: Shows coin names (e.g., ETH/USDT) clearly in cards with tables for patterns.
-- **Error Handling**: Displays clear error messages and falls back gracefully.
-
-<xaiArtifact artifact_id="c51eadf1-3274-4a6a-b698-b318250579ef" artifact_version_id="509d5c25-fef5-439e-a9d7-29b152397556" title="main.js" contentType="text/javascript">
-document.addEventListener('DOMContentLoaded', () => {
-    const analyzeButton = document.getElementById('analyzeButton');
-    const resultsDiv = document.getElementById('analysisResults');
-
-    if (!analyzeButton || !resultsDiv) {
-        console.error('عناصر الواجهة غير موجودة');
-        resultsDiv.innerHTML = '<p class="error">خطأ في تحميل الواجهة</p>';
-        return;
-    }
-
-    // List of Binance API endpoints
-    const endpoints = [
-        'https://api.binance.com',
-        'https://api1.binance.com',
-        'https://api2.binance.com',
-        'https://api3.binance.com',
-        'https://api4.binance.com',
-        'https://data-api.binance.vision'
-    ];
-
-    // CORS proxy for development
-    const corsProxy = 'https://cors-anywhere.herokuapp.com/';
-
-    // Fallback data for non-BTC pairs
-    const fallbackData = {
         'ETHUSDT': Array(100).fill().map((_, i) => [
             1697059200000 + i * 3600000,
             3200 + Math.random() * 50,
@@ -84,6 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
             245 + Math.random() * 8,
             250 + Math.random() * 10,
             2000 + Math.random() * 1000
+        ]),
+        'XRPUSDT': Array(100).fill().map((_, i) => [
+            1697059200000 + i * 3600000,
+            0.50 + Math.random() * 0.05,
+            0.52 + Math.random() * 0.06,
+            0.48 + Math.random() * 0.04,
+            0.50 + Math.random() * 0.05,
+            8000 + Math.random() * 4000
         ])
     };
 
@@ -98,10 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(proxiedUrl, {
                 ...options,
-                headers: {
-                    ...options.headers,
-                    // Remove Content-Type to avoid CORS preflight issues
-                },
+                headers: { ...options.headers },
                 timeout: 10000
             });
             if (!response.ok) {
@@ -131,11 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ws.onmessage = (event) => {
                     const data = JSON.parse(event.data);
                     data.forEach(ticker => {
-                        wsData[ticker.s] = parseFloat(ticker.c); // Store latest price
+                        wsData[ticker.s] = parseFloat(ticker.c);
                     });
                 };
-                ws.onerror = () => console.warn('فشل WebSocket، الاعتماد على REST API أو بيانات احتياطية');
-                // Give WebSocket 2 seconds to connect
+                ws.onerror = () => console.warn('فشل WebSocket، الاعتماد على بيانات احتياطية');
                 await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (wsError) {
                 console.warn('خطأ WebSocket:', wsError.message);
@@ -148,10 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 nonBtcPairs = exchangeInfo.symbols
                     .filter(symbol => symbol.quoteAsset === 'USDT' && !symbol.baseAsset.includes('BTC') && !symbol.symbol.includes('BTC'))
                     .map(symbol => symbol.symbol)
-                    .slice(0, 5); // Limit to 5 pairs for performance
+                    .slice(0, 5);
             } catch (error) {
                 console.warn('فشل جلب قائمة الأزواج، استخدام بيانات احتياطية:', error.message);
-                nonBtcPairs = Object.keys(fallbackData); // Use fallback pairs
+                nonBtcPairs = Object.keys(fallbackData);
             }
 
             if (!nonBtcPairs.length) {
@@ -170,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         klineData = await fetchWithFallback(`${endpoints[0]}/api/v3/klines?symbol=${pair}&interval=1h&limit=100`);
                     } catch (apiError) {
                         console.warn(`فشل جلب بيانات ${pair}، استخدام بيانات احتياطية:`, apiError.message);
-                        klineData = fallbackData[pair] || fallbackData['ETHUSDT']; // Default to ETHUSDT if pair not in fallback
+                        klineData = fallbackData[pair] || fallbackData['ETHUSDT'];
                     }
 
                     if (!Array.isArray(klineData) || klineData.length < 20) {
@@ -184,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         continue;
                     }
 
-                    // Use WebSocket price if available
                     analysis.currentPrice = wsData[pair] || analysis.currentPrice;
 
                     // Create currency card
