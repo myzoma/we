@@ -2,15 +2,16 @@
 
 const proxy = "https://rapid-paper-fd13.mezajiat.workers.dev/";
 
-// جلب جميع أزواج USDT من Binance (عبر البروكسي)
-async function fetchUsdtPairs() {
-  const url = `${proxy}api/v3/exchangeInfo`;
+// جلب كل أزواج USDT
+async function getUsdtPairs() {
+  const url = proxy + "api/v3/exchangeInfo";  // ✅ لازم تبدأ بـ /api/v3
   const res = await fetch(url);
   const data = await res.json();
   return data.symbols
     .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
     .map(s => s.symbol);
 }
+
 
 // جلب سعر عملة واحدة
 async function fetchPrice(symbol) {
