@@ -1,17 +1,18 @@
 // ملف analyzer.js لتحليل كامل سوق USDT تلقائيًا باستخدام Cloudflare Worker
 
-const proxy = "https://rapid-paper-fd13.mezajiat.workers.dev/";
+// ملف analyzer.js لتحليل كامل سوق USDT تلقائيًا باستخدام Render Proxy
+
+const proxy = "https://render-1-eujx.onrender.com/";
 
 // جلب كل أزواج USDT
 async function getUsdtPairs() {
-  const url = proxy + "api/v3/exchangeInfo";  // ✅ لازم تبدأ بـ /api/v3
+  const url = proxy + "api/v3/exchangeInfo";
   const res = await fetch(url);
   const data = await res.json();
   return data.symbols
     .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
     .map(s => s.symbol);
 }
-
 
 // جلب سعر عملة واحدة
 async function fetchPrice(symbol) {
@@ -20,6 +21,7 @@ async function fetchPrice(symbol) {
   const data = await res.json();
   return parseFloat(data.price);
 }
+
 
 // توليد بيانات شموع صناعية
 function generateSyntheticKlines(currentPrice) {
