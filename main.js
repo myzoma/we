@@ -17,12 +17,6 @@ async function fetchUsdtPairs() {
 }
 
 
-  return data.symbols
-    .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
-    .map(s => s.symbol);
-}
-
-
 // جلب سعر عملة واحدة
 async function fetchPrice(symbol) {
   const url = `${proxy}api/v3/ticker/price?symbol=${symbol}`;
