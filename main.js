@@ -58,10 +58,18 @@ async function fetchUsdtPairs() {
   const url = proxy + "api/v3/exchangeInfo";
   const res = await fetch(url);
   const data = await res.json();
+
+  console.log("📦 Response from exchangeInfo:", data); // أضف هذا السطر لرؤية محتوى data
+
+  if (!data.symbols) {
+    throw new Error("❌ Binance API لم تُرجع بيانات رموز (symbols)، قد تكون رسالة خطأ: " + JSON.stringify(data));
+  }
+
   return data.symbols
     .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
     .map(s => s.symbol);
 }
+
 
 // تحليل السوق الكامل
 async function analyzeMarket() {
