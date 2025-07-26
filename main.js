@@ -1,140 +1,101 @@
-const proxy = "https://pt-x64v.onrender.com/"; // لاحظ إضافة / في النهاية
+const proxy = "https://pt-x64v.onrender.com";
 
 async function fetchUsdtPairs() {
   try {
-    const url = proxy + "api/binance/exchange-info"; // تعديل المسار
+    console.log('Fetching USDT pairs...');
+    const url = `${proxy}/api/binance/exchange-info`;
     const res = await fetch(url);
     
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
     }
     
     const data = await res.json();
-    console.log("📦 Response from exchangeInfo:", data);
+    console.log('Exchange info response:', data);
 
-    if (!data.symbols) {
-      throw new Error("❌ Binance API لم تُرجع بيانات رموز (symbols)، قد تكون رسالة خطأ: " + JSON.stringify(data));
+    if (!data.success || !data.symbols) {
+      throw new Error('Invalid data structure from server');
     }
 
-    return data.symbols
+    const usdtPairs = data.symbols
       .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
       .map(s => s.symbol);
-  } catch (error) {
-    console.error("Error fetching USDT pairs:", error);
-    throw error; // أو يمكنك إرجاع قائمة افتراضية
-  }
-}
-
-async function fetchPrice(symbol) {
-  try {
-    const url = `${proxy}api/binance/spot-price/${symbol}`; // تعديل المسار
-    const res = await fetch(url);
     
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-    
-    const data = await res.json();
-    return parseFloat(data.data.price); // تعديل حسب هيكل الاستجابة
+    console.log('Filtered USDT pairs:', usdtPairs);
+    return usdtPairs;
   } catch (error) {
-    console.error(`Error fetching price for ${symbol}:`, error);
-    throw error;
+    console.error('Error in fetchUsdtPairs:', error);
+    // إرجاع قائمة افتراضية في حالة الخطأ
+    return ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT'];
   }
 }
 
-function generateSyntheticKlines(currentPrice) {
-  const klineData = [];
-  const now = Date.now();
-  const hour = 3600000;
-  const volatility = currentPrice * 0.02;
-
-  for (let i = 99; i >= 0; i--) {
-    const timestamp = now - i * hour;
-    const offset = volatility * (Math.sin(i / 10) + Math.random());
-    const close = currentPrice - offset;
-    const open = close * (1 + (Math.random() - 0.5) * 0.01);
-    const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.01);
-    const volume = currentPrice * (Math.random() * 100 + 10);
-    klineData.push([timestamp, open, high, low, close, volume]);
-  }
-  return klineData;
-}
-
+// تحسين analyzeMarket مع إدارة حالة التحميل
 async function analyzeMarket() {
   const resultsDiv = document.getElementById("analysisResults");
-  resultsDiv.innerHTML = "<p class='loading'>جاري جلب البيانات وتحليل السوق...</p>";
-
+  const analyzeBtn = document.getElementById("analyzeButton");
+  
   try {
-    const pairs = await fetchUsdtPairs();
-    const analyzer = new ElliottWaveAnalyzer();
+    // عرض حالة التحميل
+    resultsDiv.innerHTML = `
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>جاري تحليل السوق، الرجاء الانتظار...</p>
+      </div>
+    `;
+    analyzeBtn.disabled = true;
 
-    const tasks = pairs.slice(0, 10).map(async (pair) => { // تحديد عدد الأزواج لتحسين الأداء
+    const pairs = await fetchUsdtPairs();
+    console.log('Pairs to analyze:', pairs);
+    
+    if (!pairs || pairs.length === 0) {
+      throw new Error('No trading pairs available');
+    }
+
+    const analyzer = new ElliottWaveAnalyzer();
+    const analysisResults = [];
+
+    // تحليل أول 5 أزواج فقط لتحسين الأداء
+    for (const pair of pairs.slice(0, 5)) {
       try {
         const currentPrice = await fetchPrice(pair);
         const klines = generateSyntheticKlines(currentPrice);
         const analysis = analyzer.analyze(klines);
+        analysis.pair = pair;
         analysis.currentPrice = currentPrice;
+        analysisResults.push(analysis);
+      } catch (err) {
+        console.warn(`Error analyzing ${pair}:`, err);
+      }
+    }
 
+    // عرض النتائج
+    resultsDiv.innerHTML = '';
+    if (analysisResults.length === 0) {
+      resultsDiv.innerHTML = `
+        <div class="error-state">
+          <p>⚠️ لم نتمكن من تحليل أي أزواج تداول</p>
+          <button onclick="analyzeMarket()">إعادة المحاولة</button>
+        </div>
+      `;
+    } else {
+      analysisResults.forEach(analysis => {
         if (analysis.status === "success") {
-          const card = createResultCard(pair, analysis, analyzer);
+          const card = createResultCard(analysis.pair, analysis, analyzer);
           resultsDiv.appendChild(card);
         }
-      } catch (err) {
-        console.warn(`خطأ في ${pair}:`, err.message);
-      }
-    });
-
-    await Promise.all(tasks);
-
-    if (resultsDiv.children.length === 1 && resultsDiv.querySelector('.loading')) {
-      resultsDiv.innerHTML = "<p class='error'>لم يتم العثور على نتائج صالحة.</p>";
+      });
     }
   } catch (error) {
-    console.error("Error in market analysis:", error);
-    resultsDiv.innerHTML = `<p class='error'>حدث خطأ في التحليل: ${error.message}</p>`;
-  }
-}
-
-// توليد بطاقة توصية (محسنة)
-function createResultCard(pair, analysis, analyzer) {
-  const card = document.createElement("div");
-  card.className = "currency-card";
-
-  const trendClass = analysis.trend === 'up' ? 'trend-up' : analysis.trend === 'down' ? 'trend-down' : 'trend-neutral';
-  
-  card.innerHTML = `
-    <div class="card-header ${trendClass}">
-      <h3>${pair}</h3>
-      <span class="trend-indicator">${analyzer.translateTrend(analysis.trend)}</span>
-    </div>
-    <div class="card-body">
-      <p><strong>السعر الحالي:</strong> ${analysis.currentPrice.toFixed(2)} USDT</p>
-      <p><strong>ملخص:</strong> ${analysis.summary}</p>
-      ${analysis.currentWaveAnalysis ? `
-      <div class="pattern">
-        <h4>تحليل الموجة الحالية</h4>
-        <p><strong>نوع الموجة:</strong> ${analyzer.translateWaveType(analysis.currentWaveAnalysis.currentWave)}</p>
-        <p><strong>الهدف المتوقع:</strong> ${analysis.currentWaveAnalysis.expectedTarget?.toFixed(2) || '-'} USDT</p>
-        <p><strong>وقف الخسارة:</strong> ${analysis.currentWaveAnalysis.stopLoss?.toFixed(2) || '-'} USDT</p>
-        <p><strong>الثقة:</strong> <span class="confidence">${analysis.currentWaveAnalysis.confidence.toFixed(1)}%</span></p>
+    console.error('Error in analyzeMarket:', error);
+    resultsDiv.innerHTML = `
+      <div class="error-state">
+        <p>❌ حدث خطأ في التحليل: ${error.message}</p>
+        <button onclick="analyzeMarket()">إعادة المحاولة</button>
       </div>
-      ` : ''}
-    </div>
-  `;
-
-  return card;
-}
-
-// تحسين تهيئة الصفحة
-document.addEventListener("DOMContentLoaded", () => {
-  const analyzeBtn = document.getElementById("analyzeButton");
-  if (analyzeBtn) {
-    analyzeBtn.addEventListener("click", function() {
-      this.disabled = true;
-      analyzeMarket().finally(() => {
-        this.disabled = false;
-      });
-    });
+    `;
+  } finally {
+    analyzeBtn.disabled = false;
   }
-});
+}
