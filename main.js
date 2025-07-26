@@ -1,24 +1,21 @@
-// ملف analyzer.js لتحليل كامل سوق USDT تلقائيًا باستخدام Cloudflare Worker
+const proxy = "https://render-3-jyv6.onrender.com/";
 
-// ملف analyzer.js لتحليل كامل سوق USDT تلقائيًا باستخدام Render Proxy
-
-const proxy = "https://render-1-eujx.onrender.com/";
-
-// جلب كل أزواج USDT
-async function getUsdtPairs() {
-  const url = proxy + "api/v3/exchangeInfo";
+async function fetchUsdtPairs() {
+  const url = proxy + "exchangeInfo";
   const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error("فشل في جلب بيانات Binance: " + res.status);
-  }
-
   const data = await res.json();
 
+  console.log("📦 Response from exchangeInfo:", data);
+
   if (!data.symbols) {
-    console.error("الاستجابة غير متوقعة:", data);
-    throw new Error("البيانات غير صالحة أو مفقودة");
+    throw new Error("❌ Binance API لم تُرجع بيانات رموز (symbols)، قد تكون رسالة خطأ: " + JSON.stringify(data));
   }
+
+  return data.symbols
+    .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
+    .map(s => s.symbol);
+}
+
 
   return data.symbols
     .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
