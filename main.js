@@ -1,4 +1,4 @@
-const proxy = "https://proxi-c735.onrender.com/";
+const proxy = "https://pt-x64v.onrender.com/";
 
 async function fetchUsdtPairs() {
   const url = proxy + "exchangeInfo";
