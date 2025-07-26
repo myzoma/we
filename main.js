@@ -8,11 +8,23 @@ const proxy = "https://render-1-eujx.onrender.com/";
 async function getUsdtPairs() {
   const url = proxy + "api/v3/exchangeInfo";
   const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error("فشل في جلب بيانات Binance: " + res.status);
+  }
+
   const data = await res.json();
+
+  if (!data.symbols) {
+    console.error("الاستجابة غير متوقعة:", data);
+    throw new Error("البيانات غير صالحة أو مفقودة");
+  }
+
   return data.symbols
     .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
     .map(s => s.symbol);
 }
+
 
 // جلب سعر عملة واحدة
 async function fetchPrice(symbol) {
